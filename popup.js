@@ -100,6 +100,10 @@ function analyzeAccessibility() {
   window.__a11yElements = {};
   let elementIdCounter = 0;
 
+  // Performance optimization: Quick check for very large pages
+  const totalElements = document.getElementsByTagName('*').length;
+  const isLargePage = totalElements > 5000;
+
   /**
    * Helper function to store element reference and add data attribute
    */
@@ -568,10 +572,11 @@ function analyzeAccessibility() {
   // ========================================
 
   // 1.4.3 Contrast (Minimum) - Color contrast ratio
-  const textElements = Array.from(document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, a, button, span, div, li, td, th, label')).filter(el => {
+  // Limit to most common text elements for performance
+  const textElements = Array.from(document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, a, button, label')).filter(el => {
     const text = el.textContent.trim();
     return text && text.length > 0 && window.getComputedStyle(el).display !== 'none';
-  }).slice(0, 50); // Limit to 50 for performance
+  }).slice(0, isLargePage ? 20 : 30); // Limit based on page size for better performance
 
   const contrastIssues = [];
 
@@ -659,7 +664,8 @@ function analyzeAccessibility() {
   }
 
   // 2.4.11 Focus Not Obscured (WCAG 2.2) - Fixed/sticky elements
-  const fixedElements = Array.from(document.querySelectorAll('*')).filter(el => {
+  // Check common elements that are typically fixed/sticky instead of all elements for performance
+  const fixedElements = Array.from(document.querySelectorAll('header, nav, footer, aside, div, section')).filter(el => {
     const style = window.getComputedStyle(el);
     return style.position === 'fixed' || style.position === 'sticky';
   }).slice(0, 15);
@@ -686,11 +692,11 @@ function analyzeAccessibility() {
   }
 
   // 2.5.8 Target Size (WCAG 2.2) - Touch targets smaller than 24x24px
-  const interactiveElements = Array.from(document.querySelectorAll('button, a, input:not([type="hidden"]), select, textarea, [onclick], [tabindex]'));
+  const interactiveElements = Array.from(document.querySelectorAll('button, a, input:not([type="hidden"]), select, textarea'));
   const smallTargets = interactiveElements.filter(el => {
     const rect = el.getBoundingClientRect();
     return (rect.width > 0 && rect.width < 24) || (rect.height > 0 && rect.height < 24);
-  }).slice(0, 20);
+  }).slice(0, isLargePage ? 10 : 20);
 
   if (smallTargets.length > 0) {
     issues.push({
@@ -923,79 +929,154 @@ async function highlightElement(elementId, button) {
           return;
         }
 
-        // Scroll element into view
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Remove any existing highlights
+        const existingHighlights = document.querySelectorAll('.a11y-highlight-overlay, .a11y-highlight-arrow, .a11y-highlight-label');
+        existingHighlights.forEach(el => el.remove());
 
-        // Wait a bit for scroll to complete
+        // Add animations if not already present
+        if (!document.getElementById('a11y-animations')) {
+          const style = document.createElement('style');
+          style.id = 'a11y-animations';
+          style.textContent = `
+            @keyframes a11yPulse {
+              0%, 100% {
+                box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.7),
+                            0 0 0 0 rgba(229, 62, 62, 0.4);
+              }
+              50% {
+                box-shadow: 0 0 0 10px rgba(229, 62, 62, 0),
+                            0 0 0 20px rgba(229, 62, 62, 0);
+              }
+            }
+            @keyframes a11yBounce {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-10px); }
+            }
+            @keyframes a11yFadeOut {
+              from { opacity: 1; }
+              to { opacity: 0; }
+            }
+            .a11y-highlight-overlay {
+              position: absolute;
+              background: rgba(229, 62, 62, 0.25);
+              border: 3px solid #e53e3e;
+              z-index: 2147483646;
+              pointer-events: none;
+              border-radius: 4px;
+              animation: a11yPulse 1.5s infinite;
+            }
+            .a11y-highlight-arrow {
+              position: absolute;
+              width: 0;
+              height: 0;
+              border-left: 15px solid transparent;
+              border-right: 15px solid transparent;
+              border-top: 30px solid #e53e3e;
+              z-index: 2147483646;
+              pointer-events: none;
+              animation: a11yBounce 1s infinite;
+            }
+            .a11y-highlight-label {
+              position: absolute;
+              background: #e53e3e;
+              color: white;
+              padding: 8px 12px;
+              border-radius: 4px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              font-size: 13px;
+              font-weight: 600;
+              z-index: 2147483647;
+              pointer-events: none;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+              white-space: nowrap;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        // Function to update overlay positions
+        function updateHighlightPosition() {
+          const rect = element.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+          const overlay = document.querySelector('.a11y-highlight-overlay');
+          const arrow = document.querySelector('.a11y-highlight-arrow');
+          const label = document.querySelector('.a11y-highlight-label');
+
+          if (overlay) {
+            overlay.style.top = (rect.top + scrollTop) + 'px';
+            overlay.style.left = (rect.left + scrollLeft) + 'px';
+            overlay.style.width = rect.width + 'px';
+            overlay.style.height = rect.height + 'px';
+          }
+
+          if (arrow) {
+            arrow.style.top = (rect.top + scrollTop - 40) + 'px';
+            arrow.style.left = (rect.left + scrollLeft + rect.width / 2 - 15) + 'px';
+          }
+
+          if (label) {
+            label.style.top = (rect.top + scrollTop - 75) + 'px';
+            label.style.left = (rect.left + scrollLeft + rect.width / 2) + 'px';
+            label.style.transform = 'translateX(-50%)';
+          }
+        }
+
+        // Scroll element into view smoothly
+        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+        // Wait for scroll to complete, then create highlights
         setTimeout(() => {
           const rect = element.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
 
           // Create overlay
           const overlay = document.createElement('div');
-          overlay.style.cssText = `
-            position: fixed;
-            top: ${rect.top}px;
-            left: ${rect.left}px;
-            width: ${rect.width}px;
-            height: ${rect.height}px;
-            background: rgba(229, 62, 62, 0.3);
-            border: 3px solid #e53e3e;
-            z-index: 2147483647;
-            pointer-events: none;
-            animation: a11yPulse 1.5s infinite;
-            border-radius: 4px;
-          `;
+          overlay.className = 'a11y-highlight-overlay';
+          overlay.style.top = (rect.top + scrollTop) + 'px';
+          overlay.style.left = (rect.left + scrollLeft) + 'px';
+          overlay.style.width = rect.width + 'px';
+          overlay.style.height = rect.height + 'px';
 
           // Create arrow
           const arrow = document.createElement('div');
-          arrow.style.cssText = `
-            position: fixed;
-            top: ${rect.top - 40}px;
-            left: ${rect.left + rect.width / 2 - 15}px;
-            width: 0;
-            height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            border-top: 30px solid #e53e3e;
-            z-index: 2147483647;
-            pointer-events: none;
-            animation: a11yBounce 1s infinite;
-          `;
+          arrow.className = 'a11y-highlight-arrow';
+          arrow.style.top = (rect.top + scrollTop - 40) + 'px';
+          arrow.style.left = (rect.left + scrollLeft + rect.width / 2 - 15) + 'px';
 
-          // Add animations if not already present
-          if (!document.getElementById('a11y-animations')) {
-            const style = document.createElement('style');
-            style.id = 'a11y-animations';
-            style.textContent = `
-              @keyframes a11yPulse {
-                0%, 100% { opacity: 0.8; }
-                50% { opacity: 0.5; }
-              }
-              @keyframes a11yBounce {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(-10px); }
-              }
-              @keyframes a11yFadeOut {
-                from { opacity: 1; }
-                to { opacity: 0; }
-              }
-            `;
-            document.head.appendChild(style);
-          }
+          // Create label
+          const label = document.createElement('div');
+          label.className = 'a11y-highlight-label';
+          label.textContent = 'Accessibility Issue';
+          label.style.top = (rect.top + scrollTop - 75) + 'px';
+          label.style.left = (rect.left + scrollLeft + rect.width / 2) + 'px';
+          label.style.transform = 'translateX(-50%)';
 
           document.body.appendChild(overlay);
           document.body.appendChild(arrow);
+          document.body.appendChild(label);
 
-          // Remove after 4 seconds with fade out
+          // Update position on scroll
+          const scrollHandler = () => updateHighlightPosition();
+          window.addEventListener('scroll', scrollHandler, true);
+          window.addEventListener('resize', scrollHandler);
+
+          // Remove after 5 seconds with fade out
           setTimeout(() => {
             overlay.style.animation = 'a11yFadeOut 0.5s forwards';
             arrow.style.animation = 'a11yFadeOut 0.5s forwards';
+            label.style.animation = 'a11yFadeOut 0.5s forwards';
             setTimeout(() => {
               overlay.remove();
               arrow.remove();
+              label.remove();
+              window.removeEventListener('scroll', scrollHandler, true);
+              window.removeEventListener('resize', scrollHandler);
             }, 500);
-          }, 4000);
-        }, 500);
+          }, 5000);
+        }, 800); // Increased timeout to allow smooth scroll to complete
       },
       args: [elementId]
     });
