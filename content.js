@@ -47,14 +47,41 @@
 
   // Function to extract article content
   function extractArticleContent() {
-    // Try to find the article element
-    const articleElement = document.querySelector('article') ||
-                          document.querySelector('main') ||
-                          document.querySelector('[role="main"]');
+    // Try multiple selectors for Medium's various layouts
+    let articleElement = document.querySelector('article');
+
+    // If no article tag, try to find the main content area by class patterns
+    if (!articleElement) {
+      // Try common Medium content selectors
+      const possibleSelectors = [
+        'main',
+        '[role="main"]',
+        'section[data-field="body"]',
+        '.postArticle-content',
+        '.section-content',
+        'div[class*="postContent"]',
+        'div[class*="article-content"]'
+      ];
+
+      for (const selector of possibleSelectors) {
+        articleElement = document.querySelector(selector);
+        if (articleElement && articleElement.textContent.trim().length > 200) {
+          break;
+        }
+      }
+    }
 
     if (!articleElement) {
       return null;
     }
+
+    // For member-only articles, remove paywall overlays if present
+    const paywallOverlays = articleElement.querySelectorAll('[class*="overlay"], [class*="paywall"], [class*="meter"]');
+    paywallOverlays.forEach(overlay => {
+      if (overlay.style.display !== 'none') {
+        // Don't remove, just note it exists
+      }
+    });
 
     const content = {
       text: '',
@@ -63,25 +90,35 @@
       codeBlocks: []
     };
 
-    // Get all paragraphs, headings, lists, etc.
-    const contentElements = articleElement.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, pre, code, figure');
+    // Clone the article to clean it up without modifying the page
+    const cleanArticle = articleElement.cloneNode(true);
 
-    content.html = articleElement.innerHTML;
-    content.text = articleElement.textContent.trim();
+    // Remove unwanted elements from the clone
+    const elementsToRemove = cleanArticle.querySelectorAll(
+      'script, style, iframe[src*="youtube.com/subscribe"], .bio, .author-info, .follow-button, [class*="shareButton"], [class*="clap"], [data-action="show-user-card"], aside, nav'
+    );
+    elementsToRemove.forEach(el => el.remove());
 
-    // Extract images
-    const images = articleElement.querySelectorAll('img');
+    content.html = cleanArticle.innerHTML;
+    content.text = cleanArticle.textContent.trim();
+
+    // Extract images with better Medium-specific handling
+    const images = cleanArticle.querySelectorAll('img');
     images.forEach((img, index) => {
-      content.images.push({
-        src: img.src,
-        alt: img.alt || `Image ${index + 1}`,
-        width: img.naturalWidth,
-        height: img.naturalHeight
-      });
+      // Medium often uses data-src or lazy loading
+      const src = img.src || img.getAttribute('data-src') || img.getAttribute('data-image-id');
+      if (src && !src.includes('data:image')) {
+        content.images.push({
+          src: src,
+          alt: img.alt || img.getAttribute('title') || `Image ${index + 1}`,
+          width: img.naturalWidth || img.width,
+          height: img.naturalHeight || img.height
+        });
+      }
     });
 
     // Extract code blocks
-    const codeBlocks = articleElement.querySelectorAll('pre, code');
+    const codeBlocks = cleanArticle.querySelectorAll('pre, code');
     codeBlocks.forEach((code, index) => {
       content.codeBlocks.push({
         code: code.textContent,
