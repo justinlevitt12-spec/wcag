@@ -3,125 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WCAG 2.2 Accessibility Checker</title>
+  <title>Medium Article Downloader</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="header">
-    <h1>♿ WCAG 2.2 Accessibility Checker</h1>
-  </div>
-
   <div class="container">
-    <!-- Initial state - Scan button -->
-    <div id="initial-view">
-      <div class="welcome-card">
-        <p class="welcome-text">Audit this page for WCAG 2.2 accessibility compliance</p>
-        <button id="scan-btn" class="scan-button">
-          <span class="scan-icon">🔍</span>
-          Scan This Page
-        </button>
-      </div>
+    <div class="header">
+      <h1>Medium Article Downloader</h1>
+      <p class="subtitle">Save articles with formatting preserved</p>
     </div>
 
-    <!-- Loading state -->
-    <div id="loading-view" style="display: none;">
-      <div class="loading-card">
-        <div class="spinner"></div>
-        <p class="loading-text">Analyzing accessibility...</p>
-      </div>
+    <div id="status" class="status"></div>
+
+    <div id="not-medium" class="warning" style="display: none;">
+      <p>⚠️ This page doesn't appear to be a Medium article.</p>
+      <p class="small">Navigate to a Medium article to download it.</p>
     </div>
 
-    <!-- Error state -->
-    <div id="error-view" style="display: none;">
-      <div class="error-card">
-        <p class="error-icon">⚠️</p>
-        <p class="error-text" id="error-message">An error occurred while scanning the page.</p>
-        <button id="retry-btn" class="retry-button">Try Again</button>
-      </div>
+    <div id="controls" class="controls">
+      <button id="download-markdown" class="btn btn-primary">
+        <span class="icon">📝</span>
+        Download as Markdown
+      </button>
+
+      <button id="download-pdf" class="btn btn-secondary">
+        <span class="icon">📄</span>
+        Download as PDF
+      </button>
     </div>
 
-    <!-- Results view -->
-    <div id="results-view" style="display: none;">
-      <!-- Grade Card -->
-      <div class="grade-card">
-        <div class="grade-circle" id="grade-circle">
-          <span id="grade-letter">A+</span>
-        </div>
-        <div class="stats">
-          <div class="stat">
-            <div class="stat-value" id="errors-count">0</div>
-            <div class="stat-label">Errors</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="warnings-count">0</div>
-            <div class="stat-label">Warnings</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="total-count">0</div>
-            <div class="stat-label">Total</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- WCAG Level Breakdown -->
-      <div class="level-breakdown">
-        <h3>WCAG Level Breakdown</h3>
-        <div class="level-stats">
-          <div class="level-stat">
-            <span class="level-label">Level A:</span>
-            <span class="level-value" id="level-a-count">0</span>
-          </div>
-          <div class="level-stat">
-            <span class="level-label">Level AA:</span>
-            <span class="level-value" id="level-aa-count">0</span>
-          </div>
-          <div class="level-stat">
-            <span class="level-label">Level AAA:</span>
-            <span class="level-value" id="level-aaa-count">0</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Top Recommendations -->
-      <div id="recommendations-section" class="recommendations-section">
-        <h3>🎯 Top Recommendations</h3>
-        <div id="recommendations-list"></div>
-      </div>
-
-      <!-- Issues List -->
-      <div class="issues-section">
-        <h3>Issues Found</h3>
-        <div id="issues-list"></div>
-        <div id="no-issues" style="display: none;">
-          <p class="success-message">✅ No accessibility issues found! Great job!</p>
-        </div>
-      </div>
-
-      <!-- Export Buttons -->
-      <div class="export-section">
-        <h3>Export Report</h3>
-        <div class="export-buttons">
-          <button id="export-json" class="export-btn">📄 JSON</button>
-          <button id="export-csv" class="export-btn">📊 CSV</button>
-          <button id="export-txt" class="export-btn">📝 TXT</button>
-        </div>
-      </div>
-
-      <!-- Scan Again Button -->
-      <button id="scan-again-btn" class="scan-again-button">🔄 Scan Again</button>
+    <div id="loading" class="loading" style="display: none;">
+      <div class="spinner"></div>
+      <p>Processing article...</p>
     </div>
-  </div>
 
-  <!-- Element Details Modal -->
-  <div id="modal-overlay" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="modal-title">Elements with Issues</h2>
-        <button id="modal-close" class="modal-close">✕</button>
-      </div>
-      <div class="modal-body" id="modal-body">
-        <!-- Dynamic content will be inserted here -->
-      </div>
+    <div id="success" class="success" style="display: none;">
+      <p>✅ Article downloaded successfully!</p>
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+      <p>❌ <span id="error-message">Failed to download article</span></p>
+    </div>
+
+    <div class="info">
+      <h3>Features:</h3>
+      <ul>
+        <li>Preserves formatting and code blocks</li>
+        <li>Includes images</li>
+        <li>Saves author and metadata</li>
+        <li>Works on all Medium articles</li>
+      </ul>
     </div>
   </div>
 

@@ -1,11 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "WCAG 2.2 Accessibility Checker",
+  "name": "Medium Article Downloader",
   "version": "1.0.0",
-  "description": "Professional accessibility auditing tool that scans websites for WCAG 2.2 compliance issues",
+  "description": "Download Medium articles as Markdown or PDF with images and formatting preserved",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://medium.com/*",
+    "https://*.medium.com/*",
+    "https://*/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -19,5 +25,15 @@
     "16": "icon16.png",
     "48": "icon48.png",
     "128": "icon128.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://medium.com/*",
+        "https://*.medium.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }
